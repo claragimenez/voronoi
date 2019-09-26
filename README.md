@@ -2,7 +2,7 @@
 Code for binning big images based on the Voronoi binning method by Cappellari &amp; Copin (2003)
 
 AUTHOR:
-      Gabriel Brammer, University of Copenhagen
+      Gabriel Brammer, University of Copenhagen,
       gabriel.brammer_at_nbi.ku.dk
 
 PURPOSE:
