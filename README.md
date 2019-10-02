@@ -2,16 +2,15 @@
 Code for binning big images based on the Voronoi binning method by Cappellari &amp; Copin (2003)
 
 AUTHOR:
-      Gabriel Brammer, University of Copenhagen,
-      gabriel.brammer_at_nbi.ku.dk
+      Gabriel Brammer, University of Copenhagen, gabriel.brammer_at_nbi.ku.dk
+      Clara Giménez Arteaga, University of Copenhagen, clara.arteaga_at_nbi.ku.dk
 
 PURPOSE:
       Perform adaptive spatial binning of Integral-Field Spectroscopic
       (IFS) data to reach a chosen constant signal-to-noise ratio per bin.
       The Voronoi method from Cappellari is here applied on big images,
-      so blocking of the images is necessary since it cannot be applied on
-      the whole image. The binning is also then applied to the target image
-      obtained with different filters.
+      which are sliced in order to be able to run the method. The binning
+      is then applied to the target image obtained with different filters.
 
 EXPLANATION:
       Further information on VORONOI_2D_BINNING algorithm can be found in
