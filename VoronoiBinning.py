@@ -312,7 +312,7 @@ def apply_binning(tab_file, seg_file, mask_file, obj_name):
     import glob
     from astropy.table import Table
     
-    files = glob.glob('*fits.gz')
+    files = glob.glob('*{0}*fits.gz'.format(obj_name))
     files.sort()
     res = {}
     master_table = Table()
