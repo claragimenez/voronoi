@@ -16,5 +16,3 @@ EXPLANATION:
       Further information on VORONOI_2D_BINNING algorithm can be found in
       Cappellari M., Copin Y., 2003, MNRAS, 342, 345
       http://adsabs.harvard.edu/abs/2003MNRAS.342..345C
-
-test
