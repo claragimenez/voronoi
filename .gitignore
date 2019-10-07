@@ -1,5 +1,6 @@
-
+# Input and output files
 hlsp*fits*
+*fits
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
