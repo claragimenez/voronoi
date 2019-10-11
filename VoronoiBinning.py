@@ -288,14 +288,14 @@ def voronoi_binning(image, obj_name, targetSN = 50,  original_bin = 5, minimumSN
         
     # Save output into image fits file
     primary_extn = pyfits.PrimaryHDU()
-    sci_extn = pyfits.ImageHDU(data=binned_flux,name='SCI')
-    err_extn = pyfits.ImageHDU(data=binned_err,name='ERR') 
+    sci_extn = pyfits.ImageHDU(data=binned_flux.astype(np.float32),name='SCI')
+    err_extn = pyfits.ImageHDU(data=binned_err.astype(np.float32),name='ERR') 
     pyfits.HDUList([primary_extn, sci_extn, err_extn]).writeto('binned_{0}_image.fits'.format(obj_name),
                                                                output_verify='fix', overwrite=True)
     
     tab.write('binned_{0}_table.fits'.format(obj_name), overwrite=True)
-    pyfits.writeto('binned_{0}_seg.fits'.format(obj_name),data = full_bin_seg, overwrite=True)
-    pyfits.writeto('binned_{0}_mask.fits'.format(obj_name),data = mask*1, overwrite=True)
+    pyfits.writeto('binned_{0}_seg.fits'.format(obj_name),data = full_bin_seg.astype(np.float32), overwrite=True)
+    pyfits.writeto('binned_{0}_mask.fits'.format(obj_name),data = mask*1.astype(np.float32), overwrite=True)
     
     return tab, full_bin_seg, mask
 
@@ -326,8 +326,8 @@ def apply_binning(tab_file, seg_file, mask_file, obj_name):
         res[f],data_tab = bin_image(im, tab_file, seg_file, mask_file)
         
         primary_extn = pyfits.PrimaryHDU()
-        sci_extn = pyfits.ImageHDU(data=res[f]['image_flux'],name='SCI')
-        err_extn = pyfits.ImageHDU(data=res[f]['image_err'],name='ERR')
+        sci_extn = pyfits.ImageHDU(data=res[f]['image_flux'].astype(np.float32),name='SCI')
+        err_extn = pyfits.ImageHDU(data=res[f]['image_err'].astype(np.float32),name='ERR')
         pyfits.HDUList([primary_extn, sci_extn, err_extn]).writeto('binned_{0}_{1}_image.fits'.format(obj_name,f),
                                                                    output_verify='fix',overwrite=True)
         
