@@ -28,7 +28,8 @@ CALLING SEQUENCE:
       master_table = apply_binning(table, full_bin_seg, mask, obj_name)
 
 INPUTS:
-         image: The target with the filter where S/N is highest.
+         image: Master image used to compute the binning, usually F110W, the filter
+                where S/N is highest.
       obj_name: The name of the target, to be used in the output files.
       targetSN: Target Signal-to-Noise ratio that we want to achieve with the Voronoi binning.
   original_bin: Initial segmentation of the image. Bin factor is 2**original_bin.
@@ -40,11 +41,12 @@ KEYWORDS:
          QUIET: Set this keyword to avoid printing progress results.
 
 OUTPUTS:
-         table: Table with flux and error for the target image and pixel information.
-  full_bin_seg: Segmentation image, contains bin numbers for every original pixel.
-          mask: Mask for the target image.
-  master_table: Master table with individual pixel information and flux and error 
-                for every filter.
+         table: Table of the binned pixel values from the parent image. The binned
+                flux values are the ratio flux/npix.
+  full_bin_seg: Segmentation image, shows the bin boundaries/segments.
+          mask: Pixels that individually satisfied the binning threshold.
+  master_table: Table of the binned pixel values in all of the filters for the
+                same bin definitions.
 
 PROCEDURES USED:
           VORONOI_BINNING    -- Main program to bin the target image.
