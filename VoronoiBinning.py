@@ -294,8 +294,8 @@ def voronoi_binning(image, obj_name, targetSN = 50,  original_bin = 5, minimumSN
                                                                output_verify='fix', overwrite=True)
     
     tab.write('binned_{0}_table.fits'.format(obj_name), overwrite=True)
-    pyfits.writeto('binned_{0}_seg.fits'.format(obj_name),data = full_bin_seg.astype(np.float32), overwrite=True)
-    pyfits.writeto('binned_{0}_mask.fits'.format(obj_name),data = mask*1.astype(np.float32), overwrite=True)
+    pyfits.writeto('binned_{0}_seg.fits'.format(obj_name),data = full_bin_seg, overwrite=True)
+    pyfits.writeto('binned_{0}_mask.fits'.format(obj_name),data = mask*1, overwrite=True)
     
     return tab, full_bin_seg, mask
 
