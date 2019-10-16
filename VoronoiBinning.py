@@ -325,7 +325,7 @@ def apply_binning(tab_file, seg_file, mask_file, obj_name):
     files = glob.glob('*{0}*fits.gz'.format(obj_name))
     files.sort()
     res = {}
-    filter_table = utils.GTable()
+    master_table = tab_file
     
     for file in files:
         im = pyfits.open(file)
@@ -350,13 +350,10 @@ def apply_binning(tab_file, seg_file, mask_file, obj_name):
         hdul.writeto('binned_{0}_{1}_image.fits'.format(obj_name,f), output_verify='fix',overwrite=True)
         
         # bin_flux and bin_error of each filter to append to the master table       
-        filter_table['{0}_flux'.format(f)] = res[f]['bin_flux']
-        filter_table['{0}_err'.format(f)] = res[f]['bin_err']
+        master_table['{0}_flux'.format(f)] = res[f]['bin_flux']
+        master_table['{0}_err'.format(f)] = res[f]['bin_err']
 
-    tab_file.remove_columns(['flux','err','area'])
-    for i in filter_table.keys():
-        tab_file[i] = filter_table[i]
-    master_table = tab_file
+    master_table.remove_columns(['flux','err','area'])
     master_table.write('binned_{0}_master_table.fits'.format(obj_name), overwrite=True)
     
     return master_table
