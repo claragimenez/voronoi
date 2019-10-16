@@ -66,7 +66,6 @@ from astropy.table import vstack
 
 #----------------------------------------------------------------------------
 
-
 def voronoi_binning(image, obj_name, targetSN = 50,  original_bin = 5, minimumSN = 7, quiet=True, plot=True):
     
     """
@@ -290,8 +289,18 @@ def voronoi_binning(image, obj_name, targetSN = 50,  original_bin = 5, minimumSN
     primary_extn = pyfits.PrimaryHDU()
     sci_extn = pyfits.ImageHDU(data=binned_flux.astype(np.float32),name='SCI')
     err_extn = pyfits.ImageHDU(data=binned_err.astype(np.float32),name='ERR') 
-    pyfits.HDUList([primary_extn, sci_extn, err_extn]).writeto('binned_{0}_image.fits'.format(obj_name),
-                                                               output_verify='fix', overwrite=True)
+    hdul = pyfits.HDUList([primary_extn, sci_extn, err_extn])
+    for ext in [0,1]:
+        for k in im[ext].header:
+            try:
+                if k not in hdul[ext].header:
+                    try:
+                        hdul[ext].header[k] = im[ext].header[k]
+                    except ValueError:
+                        continue
+            except IndexError:
+                continue
+    hdul.writeto('binned_{0}_image.fits'.format(obj_name), output_verify='fix', overwrite=True)
     
     tab.write('binned_{0}_table.fits'.format(obj_name), overwrite=True)
     pyfits.writeto('binned_{0}_seg.fits'.format(obj_name),data = full_bin_seg, overwrite=True)
@@ -299,8 +308,8 @@ def voronoi_binning(image, obj_name, targetSN = 50,  original_bin = 5, minimumSN
     
     return tab, full_bin_seg, mask
 
-#----------------------------------------------------------------------------
 
+#----------------------------------------------------------------------------
 
 def apply_binning(tab_file, seg_file, mask_file, obj_name):
     
@@ -312,12 +321,11 @@ def apply_binning(tab_file, seg_file, mask_file, obj_name):
     """
     
     import glob
-    from astropy.table import Table
     
     files = glob.glob('*{0}*fits.gz'.format(obj_name))
     files.sort()
     res = {}
-    master_table = Table()
+    filter_table = utils.GTable()
     
     for file in files:
         im = pyfits.open(file)
@@ -328,24 +336,33 @@ def apply_binning(tab_file, seg_file, mask_file, obj_name):
         primary_extn = pyfits.PrimaryHDU()
         sci_extn = pyfits.ImageHDU(data=res[f]['image_flux'].astype(np.float32),name='SCI')
         err_extn = pyfits.ImageHDU(data=res[f]['image_err'].astype(np.float32),name='ERR')
-        pyfits.HDUList([primary_extn, sci_extn, err_extn]).writeto('binned_{0}_{1}_image.fits'.format(obj_name,f),
-                                                                   output_verify='fix',overwrite=True)
+        hdul = pyfits.HDUList([primary_extn, sci_extn, err_extn])
+        for ext in [0,1]:
+            for k in im[ext].header:
+                try:
+                    if k not in hdul[ext].header:
+                        try:
+                            hdul[ext].header[k] = im[ext].header[k]
+                        except ValueError:
+                            continue
+                except IndexError:
+                    continue
+        hdul.writeto('binned_{0}_{1}_image.fits'.format(obj_name,f), output_verify='fix',overwrite=True)
         
         # bin_flux and bin_error of each filter to append to the master table       
-        filter_table = Table([res[f]['bin_flux'],res[f]['bin_err']], names=('{0}_flux'.format(f),'{0}_err'.format(f)))
+        filter_table['{0}_flux'.format(f)] = res[f]['bin_flux']
+        filter_table['{0}_err'.format(f)] = res[f]['bin_err']
 
-        master_table = vstack([master_table,filter_table])
-
-    single_table = single_pixel_table(mask_file,start_id=1+tab_file['id'].max())
-    seg_file[mask_file] = single_table['id'] 
-    master_table = vstack([single_table,master_table])
+    tab_file.remove_columns(['flux','err','area'])
+    for i in filter_table.keys():
+        tab_file[i] = filter_table[i]
+    master_table = tab_file
     master_table.write('binned_{0}_master_table.fits'.format(obj_name), overwrite=True)
-
+    
     return master_table
 
 
 #----------------------------------------------------------------------------
-
 
 def single_pixel_table(mask, start_id=0):
     
@@ -376,7 +393,6 @@ def single_pixel_table(mask, start_id=0):
 
 
 #----------------------------------------------------------------------
-
 
 def bin_image(im, tab_in, seg_in, mask_in, bkg_in=None, bg_mask_in=None):
     
