@@ -292,14 +292,10 @@ def voronoi_binning(image, obj_name, targetSN = 50,  original_bin = 5, minimumSN
     hdul = pyfits.HDUList([primary_extn, sci_extn, err_extn])
     for ext in [0,1]:
         for k in im[ext].header:
-            try:
                 if k not in hdul[ext].header:
-                    try:
-                        hdul[ext].header[k] = im[ext].header[k]
-                    except ValueError:
+                    if k in ['COMMENT','HISTORY','']:
                         continue
-            except IndexError:
-                continue
+                    hdul[ext].header[k] = im[ext].header[k]
     hdul.writeto('binned_{0}_image.fits'.format(obj_name), output_verify='fix', overwrite=True)
     
     tab.write('binned_{0}_table.fits'.format(obj_name), overwrite=True)
@@ -339,14 +335,10 @@ def apply_binning(tab_file, seg_file, mask_file, obj_name):
         hdul = pyfits.HDUList([primary_extn, sci_extn, err_extn])
         for ext in [0,1]:
             for k in im[ext].header:
-                try:
-                    if k not in hdul[ext].header:
-                        try:
-                            hdul[ext].header[k] = im[ext].header[k]
-                        except ValueError:
-                            continue
-                except IndexError:
-                    continue
+                if k not in hdul[ext].header:
+                    if k in ['COMMENT','HISTORY','']:
+                        continue
+                    hdul[ext].header[k] = im[ext].header[k]
         hdul.writeto('binned_{0}_{1}_image.fits'.format(obj_name,f), output_verify='fix',overwrite=True)
         
         # bin_flux and bin_error of each filter to append to the master table       
