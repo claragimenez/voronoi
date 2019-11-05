@@ -24,7 +24,7 @@ EXPLANATION:
 
 CALLING SEQUENCE:
       table, full_bin_seg, mask = voronoi_binning(image, obj_name, targetSN=50, 
-                                        original_bin=5, minimumSN=7, quiet=True, plot=True)
+                                        largest_bin=5, smallest_bin=0, minimumSN=7, quiet=True, plot=True)
       master_table = apply_binning(table, full_bin_seg, mask, obj_name)
 
 INPUTS:
@@ -32,7 +32,9 @@ INPUTS:
                 where S/N is highest.
       obj_name: The name of the target, to be used in the output files.
       targetSN: Target Signal-to-Noise ratio that we want to achieve with the Voronoi binning.
-  original_bin: Initial segmentation of the image. Bin factor is 2**original_bin.
+   largest_bin: Initial segmentation of the image. Bin factor is 2**largest_bin.
+  smallest_bin: Minimum pixel size to reach with the binning. The smallest bin will have
+                (2**smallest_bin)x(2**smallest_bin) pixels.
      minimumSN: Minimum Signal-to-Noise ratio to consider a pixel/bin.
 
 KEYWORDS:
@@ -66,7 +68,7 @@ from astropy.table import vstack
 
 #----------------------------------------------------------------------------
 
-def voronoi_binning(image, obj_name, targetSN = 50,  original_bin = 5, minimumSN = 7, quiet=True, plot=True):
+def voronoi_binning(image, obj_name, targetSN = 50,  largest_bin = 5, smallest_bin = 0, minimumSN = 7, quiet=True, plot=True):
     
     """
     Function to bin an image using the Voronoi binning method by Cappellari & Copin (2003)
@@ -126,12 +128,15 @@ def voronoi_binning(image, obj_name, targetSN = 50,  original_bin = 5, minimumSN
     SKIP_LAST = False
     
     bin_iter = 0
-    bin_factor = original_bin
+    bin_factor = largest_bin
     
     NO_NEWLINE = '\x1b[1A\x1b[1M'
     
-    for bin_iter, bin_factor in enumerate(range(original_bin+1)[::-1]):
+    for bin_iter, bin_factor in enumerate(range(largest_bin+1)[::-1]):
         bin = 2**bin_factor
+       
+        if bin_factor < smallest_bin:
+            break
         
         if (bin_factor == 0) & SKIP_LAST:
             continue
@@ -191,7 +196,7 @@ def voronoi_binning(image, obj_name, targetSN = 50,  original_bin = 5, minimumSN
             
             mask &= clip_mask
             
-            if bin_factor == original_bin:
+            if bin_factor == largest_bin:
                 # Only consider blobs larger than 20% of the largest blob
                 from skimage.morphology import label, closing, square
                 label_image = label(mask)
@@ -219,10 +224,14 @@ def voronoi_binning(image, obj_name, targetSN = 50,  original_bin = 5, minimumSN
         binNum, xBin, yBin, xBar, yBar, sn, nPixels, scale = res
     
         # Put Voronoi bins with nPixels > 1 back in the original image
-        large_bins = nPixels > 1
         NBINS = len(nPixels)
+        
+        if (bin_factor == smallest_bin) & (smallest_bin > 0):
+            valid_bins = nPixels > 0
+        else:
+            valid_bins = nPixels > 1
     
-        large_bin_ids = np.arange(NBINS)[large_bins]
+        large_bin_ids = np.arange(NBINS)[valid_bins]
         
         # Put bin in original 2D array and store info
         for b0, bin_id in enumerate(large_bin_ids):
@@ -265,9 +274,10 @@ def voronoi_binning(image, obj_name, targetSN = 50,  original_bin = 5, minimumSN
             tab[c] += tab['bin']  
     
     # Make a table for the individual pixels
-    single_table = single_pixel_table(mask,start_id=1+tab['id'].max())
-    full_bin_seg[mask] = single_table['id']
-    tab = vstack([tab,single_table])
+    if mask.sum() > 0:
+        single_table = single_pixel_table(mask,start_id=1+tab['id'].max())
+        full_bin_seg[mask] = single_table['id']
+        tab = vstack([tab,single_table])
     
     tab['flux'], tab['err'], tab['area'] = prep.get_seg_iso_flux(sci, full_bin_seg, tab, err=np.sqrt(var))
     
@@ -317,16 +327,41 @@ def apply_binning(tab_file, seg_file, mask_file, obj_name):
     """
     
     import glob
+    import astropy.units.astrophys as u
+    import numpy as np
+    import astropy.io.fits as pyfits
+    from grizli import utils
+    import pysynphot as S
     
     files = glob.glob('*{0}*fits.gz'.format(obj_name))
     files.sort()
     res = {}
     master_table = tab_file
+    bandpasses = {}
+    h = {}
+    
+    for file in files:
+        im = pyfits.open(file)
+        filt = utils.get_hst_filter(im[0].header)
+        for ext in [0,1]:
+            if 'PHOTMODE' in im[ext].header:
+                bandpasses[filt.lower()] = S.ObsBandpass(im[ext].header['PHOTMODE'].replace(' ',','))
+                break    
+        flat_flam = S.FlatSpectrum(1., fluxunits='flam')
+        obs = S.Observation(flat_flam, bandpasses[filt.lower()])
+        my_photflam = 1/obs.countrate()
+        flat_ujy = S.FlatSpectrum(1, fluxunits='ujy')
+        obs = S.Observation(flat_ujy, bandpasses[filt.lower()])
+        my_photfnu = 1/obs.countrate()
+        h['{0}_photfnu'.format(filt.lower())] = my_photfnu
+        h['{0}_photflam'.format(filt.lower())] = my_photflam
     
     for file in files:
         im = pyfits.open(file)
         f = utils.get_hst_filter(im[0].header).lower()
-        print(file, f)
+        im2mujy =  h['{0}_photfnu'.format(f)]
+        im2flam =  h['{0}_photflam'.format(f)]
+        print(f,im2mujy,im2flam)
         res[f],data_tab = bin_image(im, tab_file, seg_file, mask_file)
         
         primary_extn = pyfits.PrimaryHDU()
@@ -339,11 +374,15 @@ def apply_binning(tab_file, seg_file, mask_file, obj_name):
                     if k in ['COMMENT','HISTORY','']:
                         continue
                     hdul[ext].header[k] = im[ext].header[k]
+        hdul[1].header['IM2FLAM'] = (im2flam, 'Convert images to flambda cgs')
+        hdul[1].header['IM2MUJY'] = (im2mujy, 'Convert images to fnu, microJy')
         hdul.writeto('binned_{0}_{1}_image.fits'.format(obj_name,f), output_verify='fix',overwrite=True)
         
         # bin_flux and bin_error of each filter to append to the master table       
-        master_table['{0}_flux'.format(f)] = res[f]['bin_flux']
-        master_table['{0}_err'.format(f)] = res[f]['bin_err']
+        master_table['{0}_flux'.format(f)] = res[f]['bin_flux']*im2mujy
+        master_table['{0}_flux'.format(f)].unit = u.Jy*1e-6
+        master_table['{0}_err'.format(f)] = res[f]['bin_err']*im2mujy
+        master_table['{0}_err'.format(f)].unit = u.Jy*1e-6
 
     master_table.remove_columns(['flux','err','area'])
     master_table.write('binned_{0}_master_table.fits'.format(obj_name), overwrite=True)
