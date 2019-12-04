@@ -258,7 +258,7 @@ def voronoi_binning(image, obj_name, targetSN = 50,  largest_bin = 5, smallest_b
         not_in_a_bin = full_bin_seg == -1
         mask &= not_in_a_bin
         
-        bin_min = full_bin_seg.max()+1
+        bin_min = full_bin_data[-1][0]+1
         if not quiet:
             print('\n\n\n\n\n bin_factor: {0}, bin_min: {1}\n\n\n\n'.format(bin_factor, bin_min))
     
