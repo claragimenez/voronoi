@@ -44,7 +44,7 @@ def read(fname):
 setup(
     name = "pab",
     version = version,
-    author = "Clara Gimenez",
+    author = "Clara Giménez Arteaga",
     author_email = "clara.arteaga@nbi.ku.dk",
     description = "HST Paschen Beta analysis",
     license = "MIT",
