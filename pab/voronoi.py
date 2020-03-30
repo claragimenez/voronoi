@@ -58,13 +58,20 @@ PROCEDURES USED:
 
 """
 
+import glob
 import numpy as np
 import astropy.io.fits as pyfits
-from grizli import utils,prep
 import matplotlib.pyplot as plt
-import glob
+
+from skimage.morphology import label, closing, square
+
 from astropy.table import Table
 from astropy.table import vstack
+
+# Cappellari's code
+from vorbin.voronoi_2d_binning import voronoi_2d_binning
+
+from grizli import utils, prep
 
 #----------------------------------------------------------------------------
 
@@ -169,7 +176,7 @@ def voronoi_binning(image, obj_name, targetSN = 50,  largest_bin = 5, smallest_b
                 binned_npix[yi, xi] = mslice.sum()
                 binned_var[yi, xi] = var[sly, slx][mslice].sum()
             
-            binned_err = np.sqrt(binned_var)/binned_npix       
+            binned_err = np.sqrt(binned_var) / binned_npix       
             binned_avg = binned_sci / binned_npix
             
             mask_i = (binned_npix > 0) & (binned_avg/binned_err > minimumSN)
@@ -180,25 +187,29 @@ def voronoi_binning(image, obj_name, targetSN = 50,  largest_bin = 5, smallest_b
             binned_npix = binned_npix[mask_i]
             
         else:
+            mask_i = mask_j
             xpi = xp[mask]
             ypi = yp[mask]
             binned_avg = sci[mask]
             binned_err = np.sqrt(var)[mask]
             binned_npix = mask[mask]*1
         
-        if True:
-            # Mask pixels in largest binning that don't satisfy S/N cutoff
+        if True:         
+            
+            # Mask pixels in that don't satisfy S/N cutoff as they are 
+            # unreliable for vorbin
             clip_mask = mask < 0
             for xi, yi in zip(xpi, ypi):
                 slx = slice(xi*bin, xi*bin+bin)
                 sly = slice(yi*bin, yi*bin+bin)
                 clip_mask[sly, slx] = True
-            
+
             mask &= clip_mask
-            
+               
+            # Identify blobs (usually the main central galaxies) and 
+            # only consider blobs larger than 20% of the largest blob
             if bin_factor == largest_bin:
-                # Only consider blobs larger than 20% of the largest blob
-                from skimage.morphology import label, closing, square
+                                
                 label_image = label(mask)
                 label_ids = np.unique(label_image)[1:]
                 label_sizes = np.array([(label_image == id_i).sum() for id_i in label_ids])
@@ -210,16 +221,25 @@ def voronoi_binning(image, obj_name, targetSN = 50,  largest_bin = 5, smallest_b
                 
                 mask &= keep_mask
                 
+                # In binned_coords
+                in_blob = keep_mask[ypi*bin, xpi*bin]
+                msg = 'Drop {0} bins not in main blob'
+                
+                print(msg.format((~in_blob).sum()))
+                xpi = xpi[in_blob]
+                ypi = ypi[in_blob]
+                binned_avg = binned_avg[in_blob]
+                binned_err = binned_err[in_blob]
+                binned_npix = binned_npix[in_blob]
+                
             ypb = yp[mask] // bin
             xpb = xp[mask] // bin
-                  
-        # Cappellari's code
-        from vorbin.voronoi_2d_binning import voronoi_2d_binning
-        
+                          
         print('Run voronoi_2d_binning, bin_factor={0}'.format(bin_factor))
                 
         res = voronoi_2d_binning(xpi, ypi, binned_avg, binned_err, targetSN,
-                                 quiet=True, plot=False, pixelsize=0.1*bin, cvt=True, wvt=True)
+                                 quiet=True, plot=False, pixelsize=0.1*bin,
+                                 cvt=True, wvt=True)
             
         binNum, xBin, yBin, xBar, yBar, sn, nPixels, scale = res
     
@@ -384,7 +404,7 @@ def apply_binning(tab_file, seg_file, mask_file, obj_name):
         master_table['{0}_err'.format(f)] = res[f]['bin_err']*im2mujy
         master_table['{0}_err'.format(f)].unit = u.Jy*1e-6
 
-    master_table.remove_columns(['flux','err','area'])
+    # master_table.remove_columns(['flux','err','area'])
     master_table.write('binned_{0}_master_table.fits'.format(obj_name), overwrite=True)
     
     return master_table
