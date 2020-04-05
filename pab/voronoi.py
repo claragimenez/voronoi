@@ -400,9 +400,9 @@ def apply_binning(tab_file, seg_file, mask_file, obj_name):
         
         # bin_flux and bin_error of each filter to append to the master table       
         master_table['{0}_flux'.format(f)] = res[f]['bin_flux']*im2mujy
-        master_table['{0}_flux'.format(f)].unit = u.Jy*1e-6
+        master_table['{0}_flux'.format(f)].unit = u.uJy
         master_table['{0}_err'.format(f)] = res[f]['bin_err']*im2mujy
-        master_table['{0}_err'.format(f)].unit = u.Jy*1e-6
+        master_table['{0}_err'.format(f)].unit = u.uJy
 
     # master_table.remove_columns(['flux','err','area'])
     master_table.write('binned_{0}_master_table.fits'.format(obj_name), overwrite=True)
